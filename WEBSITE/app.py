@@ -1,11 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime, time, timedelta, date
-from config import SQLALCHEMY_DATABASE_URI
+from config import os, SQLALCHEMY_DATABASE_URI
 import random
-
 
 
 
@@ -794,6 +793,14 @@ def delete_user(user_id):
 @app.errorhandler(404)
 def not_found(e):
     return render_template('404.html'), 404
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, 'static'),
+        'favicon.ico',
+        mimetype='image/vnd.microsoft.icon'
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)
