@@ -789,6 +789,40 @@ def delete_user(user_id):
     flash("User deleted.", "success")
     return redirect(url_for('admin_console'))
 
+@app.route('/add_funds', methods=['POST'])
+@login_required
+def add_funds():
+    user = User.query.get(session['user_id'])
+    try:
+        amount = float(request.form.get('amount', '0'))
+    except ValueError:
+        amount = 0
+    if amount <= 0:
+        flash("Provide a positive amount.", "danger")
+        return redirect(url_for('profile'))
+    user.funds += amount
+    db.session.commit()
+    flash(f"Added ${amount:.2f} to your account.", "success")
+    return redirect(url_for('profile'))
+
+@app.route('/subtract_funds', methods=['POST'])
+@login_required
+def subtract_funds():
+    user = User.query.get(session['user_id'])
+    try:
+        amount = float(request.form.get('amount', '0'))
+    except ValueError:
+        amount = 0
+    if amount <= 0:
+        flash("Provide a positive amount.", "danger")
+        return redirect(url_for('profile'))
+    if amount > user.funds:
+        flash("Insufficient funds.", "danger")
+        return redirect(url_for('profile'))
+    user.funds -= amount
+    db.session.commit()
+    flash(f"Subtracted ${amount:.2f} from your account.", "success")
+    return redirect(url_for('profile'))
 
 @app.errorhandler(404)
 def not_found(e):
