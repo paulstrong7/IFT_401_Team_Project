@@ -269,7 +269,7 @@ def profile():
 
     portfolio = Portfolio.query.filter_by(user_id=user.id).all()
 
-    orders = Order.query.filter_by(user_id=user.id).order_by(Order.executed_at.desc()).all()
+    orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
 
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
@@ -500,7 +500,7 @@ def trade(ticker):
                 else:
                     p = Portfolio(user_id=user.id, stock_id=stock.stockId, quantity=quantity)
                     db.session.add(p)
-                order = Order(user_id=user.id, stock_id=stock.stockId, action='BUY', quantity=quantity, price_per_stock=stock.current_price, total_amount=total, status='executed', executed_at=datetime.utcnow())
+                order = Order(user_id=user.id, stock_id=stock.stockId, action='BUY', quantity=quantity, price_per_stock=stock.current_price, total_amount=total, timestamp=datetime.utcnow(), status='executed', executed_at=datetime.utcnow())
                 db.session.add(order)
                 db.session.commit()
                 flash(f"Bought {quantity} shares of {stock.ticker} at ${stock.current_price:.2f}.", "success")

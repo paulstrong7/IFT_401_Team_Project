@@ -96,7 +96,7 @@
                         <td style="color: white;">{{ o.quantity }}</td>
                         <td style="color: white;">${{ "%.2f"|format(o.price_per_stock or 0) }}</td>
                         <td style="color: white;">${{ "%.2f"|format(o.total_amount or 0) }}</td>
-                        <td style="color: white;">{{ o.executed_at.strftime('%Y-%m-%d %H:%M:%S') if o.executed_at else '' }}</td>
+                        <td style="color: white;">{{ o.timestamp }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
