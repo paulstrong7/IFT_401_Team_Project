@@ -269,7 +269,7 @@ def profile():
 
     portfolio = Portfolio.query.filter_by(user_id=user.id).all()
 
-    orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
+    orders = Order.query.filter_by(user_id=user.id).order_by(Order.executed_at.desc()).all()
 
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
