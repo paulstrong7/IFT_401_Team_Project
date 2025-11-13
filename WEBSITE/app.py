@@ -64,7 +64,7 @@ class Order(db.Model):
     price_per_stock = db.Column(db.Float, nullable=True)
     total_amount = db.Column(db.Float, nullable=True)
     status = db.Column(db.String(20), nullable=False, default='pending')
-    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     executed_at = db.Column(db.DateTime, nullable=True)
     stock = db.relationship('StockInventory')
 
