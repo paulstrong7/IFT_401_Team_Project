@@ -48,10 +48,11 @@ class StockInventory(db.Model):
 class Portfolio(db.Model):
     __tablename__ = "portfolio"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
+    stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId', ondelete="CASCADE"), nullable=False)
     quantity = db.Column(db.Integer, default=0)
-    stock = db.relationship('StockInventory')
+    stock = db.relationship('StockInventory',backref=db.backref('portfolio_entries', cascade="all, delete", passive_deletes=True),lazy="joined"
+    )
 
 class Order(db.Model):
     __tablename__ = "orders"
@@ -265,7 +266,7 @@ def profile():
     if not user:
         flash("User not found.")
         return redirect(url_for('login'))
-    portfolio = Portfolio.query.filter_by(user_id=user.id).all()
+    portfolio = [p for p in Portfolio.query.filter_by(user_id=user.id).all() if p.stock]
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
