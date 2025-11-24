@@ -266,11 +266,8 @@ def profile():
     if not user:
         flash("User not found.")
         return redirect(url_for('login'))
-
     portfolio = Portfolio.query.filter_by(user_id=user.id).all()
-
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
-
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
 @app.route('/admin')
@@ -297,7 +294,7 @@ def add_stock_to_db(name, ticker, quantity, base_price):
         ticker=ticker,
         quantity=quantity,
         base_price=base_price,
-        current_price=base_price,  # added current_price initialization
+        current_price=base_price,
         day_high=base_price,
         day_low=base_price
     )
@@ -312,8 +309,6 @@ def add_stock_route():
     ticker = request.form['ticker']
     quantity = request.form['quantity']
     base_price = request.form['base_price']
-    
-    # Call the helper function to add the stock
     add_stock_to_db(stock_name, ticker, quantity, base_price)
     
     flash(f"Stock {ticker} added successfully!", "success")
@@ -322,13 +317,9 @@ def add_stock_route():
 
 
 def add_price_tick_if_allowed(stock, new_price):
-    # Assume `last_tick_for_stock(stock.stockId)` gets the most recent tick
     last = last_tick_for_stock(stock.stockId)  
     now = datetime.utcnow()
-
-    # Check if enough time has passed since the last price tick
     if last is None or (now - last.timestamp).total_seconds() >= MIN_TICK_SECONDS:
-        # If allowed, add a new price tick
         tick = StockPriceTick(stock_id=stock.stockId, timestamp=now, price=new_price)
         db.session.add(tick)
         db.session.commit()
@@ -338,15 +329,10 @@ def add_price_tick_if_allowed(stock, new_price):
 @admin_required
 def remove_stock(stock_id):
     s = StockInventory.query.get_or_404(stock_id)
-    
-    # Ensure no one owns this stock before removing it
     owners = Portfolio.query.filter_by(stock_id=s.stockId).first()
-    
     if owners:
         flash("Cannot remove stock while users still hold positions.", "danger")
         return redirect(url_for('admin_console'))
-
-    # Remove the stock from the inventory
     db.session.delete(s)
     db.session.commit()
 
@@ -388,11 +374,8 @@ def subtract_funds_user(user_id):
 def market_demo_tick():
     stocks = StockInventory.query.all()
     for s in stocks:
-        # ±5% random fluctuation
         pct_change = random.uniform(-0.05, 0.05)
         new_price = max(0.01, round(s.current_price * (1 + pct_change), 2))
-
-        # Update high/low
         s.day_high = max(s.day_high or new_price, new_price)
         s.day_low = min(s.day_low or new_price, new_price)
 
@@ -440,19 +423,15 @@ def market():
 @app.route('/market_demo_data')
 def market_demo_data():
     try:
-        stocks = StockInventory.query.all()  # <-- use StockInventory
+        stocks = StockInventory.query.all()
         stock_list = []
 
         for s in stocks:
-            # ±5% random fluctuation for demo
             pct_change = random.uniform(-0.05, 0.05)
             new_price = max(0.01, round(s.current_price * (1 + pct_change), 2))
-
-            # Update high/low
             s.day_high = max(s.day_high or new_price, new_price)
             s.day_low = min(s.day_low or new_price, new_price)
             s.current_price = new_price
-
             stock_list.append({
                 'name': s.name,
                 'ticker': s.ticker,
@@ -463,7 +442,6 @@ def market_demo_data():
                 'quantity': s.quantity,
                 'market_cap': round(s.current_price * s.quantity, 2)
             })
-
         db.session.commit()
         return jsonify(stock_list)
     except Exception as e:
@@ -486,7 +464,7 @@ def trade(ticker):
         except:
             quantity = 0
         action = request.form.get('action').upper()
-        total = round(stock.current_price * quantity, 2)  # Fixed to use current_price
+        total = round(stock.current_price * quantity, 2)
         if quantity <= 0:
             flash("Quantity must be > 0", "danger")
             return redirect(url_for('trade', ticker=ticker))
@@ -511,7 +489,7 @@ def trade(ticker):
             if not p or p.quantity < quantity:
                 flash("Not enough shares to sell.", "danger")
             else:
-                proceeds = round(stock.current_price * quantity, 2)  # Fixed to use current_price
+                proceeds = round(stock.current_price * quantity, 2)
                 user.funds += proceeds
                 stock.quantity += quantity
                 p.quantity -= quantity
@@ -532,7 +510,7 @@ def trade(ticker):
 @app.route('/order_preview/<ticker>', methods=['POST'])
 @login_required
 def order_preview(ticker):
-    stock = StockInventory.query.filter_by(ticker=ticker).first_or_404()
+    stock = StockInventory.query.filter_by(ticker=ticker.upper()).first_or_404()
     action = request.form.get("action")
     try:
         quantity = int(request.form.get("quantity"))
@@ -555,7 +533,7 @@ def execute_order(ticker):
     if not user.email:
         flash("You must set an email address before trading stocks.", "danger")
         return redirect(url_for('profile'))
-    stock = StockInventory.query.filter_by(ticker=ticker).first_or_404()
+    stock = StockInventory.query.filter_by(ticker=ticker.upper()).first_or_404()
     action = request.form['action']
     try:
         quantity = int(request.form['quantity'])
