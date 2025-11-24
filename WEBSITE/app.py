@@ -48,11 +48,10 @@ class StockInventory(db.Model):
 class Portfolio(db.Model):
     __tablename__ = "portfolio"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
-    stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId', ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId'), nullable=False)
     quantity = db.Column(db.Integer, default=0)
-    stock = db.relationship('StockInventory',backref=db.backref('portfolio_entries', cascade="all, delete", passive_deletes=True),lazy="joined"
-    )
+    stock = db.relationship('StockInventory')
 
 class Order(db.Model):
     __tablename__ = "orders"
@@ -753,18 +752,26 @@ def delete_account():
     return redirect(url_for('home'))
 
 @app.route('/delete_user/<int:user_id>', methods=['POST'])
-@admin_required
+@login_required
 def delete_user(user_id):
-    u = User.query.get_or_404(user_id)
-    for p in list(u.portfolio):
+    current_user_obj = User.query.get(session['user_id'])
+    if not current_user_obj.is_admin():
+        flash("You are not authorized to delete other users.", "danger")
+        return redirect(url_for('profile'))
+    if current_user_obj.id == user_id:
+        flash("You cannot delete yourself from the admin console.", "danger")
+        return redirect(url_for('admin_console'))
+
+    user_to_delete = User.query.get_or_404(user_id)
+    for p in list(user_to_delete.portfolio):
         stock = p.stock
         if stock:
             stock.quantity += p.quantity
         db.session.delete(p)
-    Order.query.filter_by(user_id=u.id).delete()
-    db.session.delete(u)
+    db.session.delete(user_to_delete)
     db.session.commit()
-    flash("User deleted.", "success")
+
+    flash(f"User {user_to_delete.username} has been deleted.", "success")
     return redirect(url_for('admin_console'))
 
 @app.route('/add_funds', methods=['POST'])
