@@ -836,5 +836,19 @@ def favicon():
         mimetype='image/vnd.microsoft.icon'
     )
 
+@app.route('/update_profile', methods=['POST'])
+@login_required
+def update_profile():
+    user = User.query.get(session['user_id'])
+    new_display = request.form.get('display_name', "").strip()
+    new_email = request.form.get('email', "").strip()
+    if new_display:
+        user.display_name = new_display
+    if new_email:
+        user.email = new_email
+    db.session.commit()
+    flash("Profile updated successfully.")
+    return redirect(url_for('profile'))
+
 if __name__ == '__main__':
     app.run(debug=True)
