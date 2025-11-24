@@ -34,6 +34,7 @@ class User(db.Model):
 
 class StockInventory(db.Model):
     __tablename__ = 'StockInventory'
+
     stockId = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     ticker = db.Column(db.String(10), unique=True, nullable=False)
@@ -50,7 +51,10 @@ class Portfolio(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
     stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId', ondelete="CASCADE"), nullable=False)
     quantity = db.Column(db.Integer, default=0)
-    stock = db.relationship('StockInventory',backref=db.backref('portfolio_entries', cascade="all, delete", passive_deletes=True),lazy="joined"
+    stock = db.relationship(
+        'StockInventory',
+        backref=db.backref('portfolio_entries', cascade="all, delete", passive_deletes=True),
+        lazy="joined"
     )
 
 class Order(db.Model):
@@ -265,9 +269,19 @@ def profile():
     if not user:
         flash("User not found.")
         return redirect(url_for('login'))
+
     portfolio = Portfolio.query.filter_by(user_id=user.id).all()
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
-    return render_template("profile.html", portfolio=portfolio, orders=orders)
+
+    for p in portfolio:
+        _ = p.stock
+
+    return render_template(
+        "profile.html",
+        current_user=user,
+        portfolio=portfolio,
+        orders=orders
+    )
 
 @app.route('/admin')
 @admin_required
