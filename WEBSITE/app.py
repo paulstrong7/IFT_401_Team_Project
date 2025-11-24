@@ -45,14 +45,14 @@ class StockInventory(db.Model):
     day_low = db.Column(db.Float)
     currentMarketPrice = db.Column(db.Float)
 
-
 class Portfolio(db.Model):
     __tablename__ = "portfolio"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
+    stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId', ondelete="CASCADE"), nullable=False)
     quantity = db.Column(db.Integer, default=0)
-    stock = db.relationship('StockInventory')
+    stock = db.relationship('StockInventory',backref=db.backref('portfolio_entries', cascade="all, delete", passive_deletes=True),lazy="joined"
+    )
 
 class Order(db.Model):
     __tablename__ = "orders"
@@ -510,7 +510,7 @@ def trade(ticker):
 @app.route('/order_preview/<ticker>', methods=['POST'])
 @login_required
 def order_preview(ticker):
-    stock = StockInventory.query.filter_by(ticker=ticker.upper()).first_or_404()
+    stock = StockInventory.query.filter_by(ticker=ticker).first_or_404()
     action = request.form.get("action")
     try:
         quantity = int(request.form.get("quantity"))
@@ -533,7 +533,7 @@ def execute_order(ticker):
     if not user.email:
         flash("You must set an email address before trading stocks.", "danger")
         return redirect(url_for('profile'))
-    stock = StockInventory.query.filter_by(ticker=ticker.upper()).first_or_404()
+    stock = StockInventory.query.filter_by(ticker=ticker).first_or_404()
     action = request.form['action']
     try:
         quantity = int(request.form['quantity'])
