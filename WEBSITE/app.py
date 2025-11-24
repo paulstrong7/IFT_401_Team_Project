@@ -34,7 +34,6 @@ class User(db.Model):
 
 class StockInventory(db.Model):
     __tablename__ = 'StockInventory'
-
     stockId = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     ticker = db.Column(db.String(10), unique=True, nullable=False)
@@ -266,7 +265,7 @@ def profile():
     if not user:
         flash("User not found.")
         return redirect(url_for('login'))
-    portfolio = [p for p in Portfolio.query.filter_by(user_id=user.id).all() if p.stock]
+    portfolio = Portfolio.query.filter_by(user_id=user.id).all()
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
