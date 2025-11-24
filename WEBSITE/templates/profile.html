@@ -54,7 +54,6 @@
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
-                            <th style="color: white;">Stock</th>
                             <th style="color: white;">Ticker</th>
                             <th style="color: white;">Quantity</th>
                             <th style="color: white;">Current Price</th>
@@ -64,38 +63,15 @@
                     </thead>
                     <tbody>
                         {% for p in portfolio %}
-                        <tr>
-                            <td style="color: white;">
-                                {% if p.stock %}
-                                    {{ p.stock.name }}
-                                {% else %}
-                                    Deleted Stock
-                                {% endif %}
-                            </td>
-                            <td style="color: white;">
-                                {% if p.stock %}
-                                    <strong>{{ p.stock.ticker }}</strong>
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </td>
-                            <td style="color: white;">
-                                {{ p.quantity }}
-                            </td>
-                            <td style="color: white;">
-                                {% if p.stock %} ${{ "%.2f"|format(p.stock.current_price) }} {% else %} $0 {% endif %}
-                            </td>
-                            <td style="color: white;">
-                                {% if p.stock %} ${{ "%.2f"|format(p.stock.current_price * p.quantity) }} {% else %} $0 {% endif %}
-                            </td>
-                            <td style="color: white;">
-                                {% if p.stock %}
+                            <tr>
+                                <td style="color: white;"><strong>{{ p.stock.ticker }}</strong></td>
+                                <td style="color: white;">{{ p.quantity }}</td>
+                                <td style="color: white;">${{ "%.2f"|format(p.stock.current_price) }}</td>
+                                <td style="color: white;">${{ "%.2f"|format(p.stock.current_price * p.quantity) }}</td>
+                                <td style="color: white;">
                                     <a href="{{ url_for('trade', ticker=p.stock.ticker) }}" class="btn btn-sm btn-primary">Trade</a>
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </td>
-                        </tr>
+                                </td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
