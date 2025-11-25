@@ -65,11 +65,11 @@
                     <tbody>
                         {% for p in portfolio %}
                             <tr>
-                                <td style="color: white;">{{ p.stock_name or "N/A" }}</td>
-                                <td style="color: white;"><strong>{{ p.stock_ticker or "-" }}</strong></td>
-                                <td style="color: white;">{{ p.quantity }}</td>
-                                <td style="color: white;">${{ "%.2f"|format(p.stock_current_price) }}</td>
-                                <td style="color: white;">${{ "%.2f"|format(p.total_value) }}</td>
+                                <td style="color: white;">{{ p.get('stock_name') or p.stock_name or "N/A" }}</td>
+                                <td style="color: white;"><strong>{{ p.get('stock_ticker') or p.stock_ticker or "-" }}</strong></td>
+                                <td style="color: white;">{{ p.get('quantity') or p.quantity or 0 }}</td>
+                                <td style="color: white;">${{ "%.2f"|format(p.get('stock_current_price') or p.stock_current_price or 0) }}</td>
+                                <td style="color: white;">${{ "%.2f"|format(p.get('total_value') or p.total_value or 0) }}</td>
                                 <td style="color: white;">
                                     {% if p.trade_available %}
                                         <a href="{{ url_for('trade', ticker=p.stock_ticker) }}" class="btn btn-sm btn-primary">Trade</a>
