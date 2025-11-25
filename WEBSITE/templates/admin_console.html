@@ -27,24 +27,34 @@
                         <td style="color: white;">{{ user.display_name }}</td>
                         <td style="color: white;">{{ user.username }}</td>
                         <td style="color: white;">{{ user.role }}</td>
+
                         <td>
-                            {% if user.role != 'admin' %}
-                            <form method="POST" action="{{ url_for('promote_user', user_id=user.id) }}">
-                                <button class="btn btn-sm btn-success">Promote</button>
-                            </form>
+                            {% if user.id != session['user_id'] %}
+                                {% if user.role == 'admin' %}
+                                    <form method="POST" action="{{ url_for('demote_user', user_id=user.id) }}">
+                                        <button type="submit" class="btn btn-sm btn-warning">Demote</button>
+                                    </form>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('promote_user', user_id=user.id) }}">
+                                        <button type="submit" class="btn btn-sm btn-success">Promote</button>
+                                    </form>
+                                {% endif %}
                             {% endif %}
                         </td>
+
                         <td>
                             <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Delete this user?');">
                                 <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                             </form>
                         </td>
+
                         <td>
                             <form method="POST" action="{{ url_for('add_funds_user', user_id=user.id) }}" class="d-flex gap-1">
                                 <input name="amount" placeholder="$" class="form-control form-control-sm" required type="number" step="0.01">
                                 <button class="btn btn-sm btn-success">Add</button>
                             </form>
                         </td>
+
                         <td>
                             <form method="POST" action="{{ url_for('subtract_funds_user', user_id=user.id) }}" class="d-flex gap-1">
                                 <input name="amount" placeholder="$" class="form-control form-control-sm" required type="number" step="0.01">
@@ -159,7 +169,6 @@
                 <button type="submit" class="btn btn-warning">Update Stock</button>
             </div>
         </form>
-
     </div>
     
     <div class="col-md-12 mt-4">
@@ -193,6 +202,8 @@
             </table>
         </div>
     </div>
+
+    <h4 class="mb-3">Modify Calendar</h4>
     <div class="card mb-4">
         <form action="{{ url_for('calendar_add') }}" method="POST" class="row g-3">
                 <div class="col-md-3">

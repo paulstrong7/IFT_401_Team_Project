@@ -35,7 +35,7 @@ class User(db.Model):
 class StockInventory(db.Model):
     __tablename__ = 'StockInventory'
     stockId = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), db.ForeignKey('StockInventory.stockId'))
+    name = db.Column(db.String(100), nullable=False, unique=True)
     ticker = db.Column(db.String(10), unique=True, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     base_price = db.Column(db.Float, default=0.0)
@@ -372,6 +372,7 @@ def profile():
         orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
 
     return render_template('profile.html', current_user=user, users=users, stocks=stocks, portfolio=portfolio, orders=orders)
+
 @app.route('/admin')
 @admin_required
 def admin_console():
@@ -383,13 +384,28 @@ def admin_console():
 
 
 @app.route('/promote/<int:user_id>', methods=['POST'])
+@admin_required
 def promote_user(user_id):
-    user = User.query.get(user_id)
-    if user:
-        user.role = 'admin'
+    current_user_obj = User.query.get(session.get('user_id'))
+    if not current_user_obj or not current_user_obj.is_admin():
+        flash("You are not authorized.", "danger")
+        return redirect(url_for('profile'))
+
+    if current_user_obj.id == user_id:
+        flash("You cannot promote yourself.", "danger")
+        return redirect(url_for('admin_console'))
+
+    user_to_promote = User.query.get_or_404(user_id)
+    if user_to_promote.role == 'admin':
+        flash(f"{user_to_promote.username} is already an admin.", "warning")
+    else:
+        user_to_promote.role = 'admin'
         db.session.commit()
+        flash(f"User {user_to_promote.username} has been promoted to admin.", "success")
     return redirect(url_for('admin_console'))
 
+
+# Demote user
 @app.route('/demote/<int:user_id>', methods=['POST'])
 @admin_required
 def demote_user(user_id):
@@ -480,7 +496,6 @@ def modify_stock_route(stock_id):
     new_quantity = int(request.form['quantity'])
     new_base_price = float(request.form['base_price'])
 
-    # Fix: use stockId, not id
     duplicate = StockInventory.query.filter(
         ((StockInventory.ticker == new_ticker) |
          (StockInventory.name == new_name)) &
@@ -501,6 +516,7 @@ def modify_stock_route(stock_id):
 
     flash(f"Updated stock {new_ticker}.", "success")
     return redirect(url_for('admin_console'))
+
 
 @app.route('/remove_stock', methods=['POST'])
 @admin_required
