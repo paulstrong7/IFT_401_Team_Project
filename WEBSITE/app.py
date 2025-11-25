@@ -154,14 +154,23 @@ def last_tick_for_stock(stock_id):
 
 
 def add_stock(name, ticker, quantity, base_price):
+    try:
+        quantity = int(quantity)
+    except (TypeError, ValueError):
+        quantity = 0
+    try:
+        base_price = float(base_price)
+    except (TypeError, ValueError):
+        base_price = 0.0
     new_stock = StockInventory(
         name=name,
-        ticker=ticker,
+        ticker=(ticker or "").upper(),
         quantity=quantity,
-        initStockPrice=base_price,
-        currentMarketPrice=base_price,
+        base_price=base_price,
+        current_price=base_price,
         day_high=base_price,
-        day_low=base_price
+        day_low=base_price,
+        currentMarketPrice=base_price
     )
     db.session.add(new_stock)
     db.session.commit()
@@ -265,10 +274,14 @@ def profile():
     if not user:
         flash("User not found.")
         return redirect(url_for('login'))
-    portfolio = Portfolio.query.filter_by(user_id=user.id).all()
-    
+
+    portfolio = Portfolio.query.filter(
+        Portfolio.user_id == user.id,
+        Portfolio.stock_id.isnot(None)
+    ).all()
+    portfolio = [p for p in portfolio if p and p.stock]
+
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
-    
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
 @app.route('/admin')
@@ -316,16 +329,6 @@ def add_stock_route():
     return redirect(url_for('admin_console'))
 
 
-
-def add_price_tick_if_allowed(stock, new_price):
-    last = last_tick_for_stock(stock.stockId)  
-    now = datetime.utcnow()
-    if last is None or (now - last.timestamp).total_seconds() >= MIN_TICK_SECONDS:
-        tick = StockPriceTick(stock_id=stock.stockId, timestamp=now, price=new_price)
-        db.session.add(tick)
-        db.session.commit()
-        
-        
 @app.route('/remove_stock/<int:stock_id>', methods=['POST'])
 @admin_required
 def remove_stock(stock_id):
