@@ -267,15 +267,7 @@ def profile():
     if not user:
         flash("User not found.")
         return redirect(url_for('login'))
-
-    portfolio = Portfolio.query.options(joinedload(Portfolio.stock)).filter_by(user_id=user.id).all()
-    for p in portfolio:
-        if not getattr(p, 'stock', None):
-
-            try:
-                p.stock = StockInventory.query.get(p.stock_id)
-            except Exception:
-                p.stock = None
+    portfolio = (Portfolio.query.join(StockInventory, Portfolio.stock_id == StockInventory.stockId).filter(Portfolio.user_id == user.id).all())
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
