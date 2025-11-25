@@ -136,40 +136,40 @@
                 <select id="modify-stock-selector" class="form-control">
                     <option value="">-- Choose Stock --</option>
                     {% for s in stocks %}
-                        <option value="{{ s.stockId }}">{{ s.name }} ({{ s.ticker }})</option>
+                        <option value="{{ s.stockId }}" data-name="{{ s.name }}" data-ticker="{{ s.ticker }}"
+                                data-quantity="{{ s.quantity }}" data-base="{{ s.base_price }}">
+                            {{ s.name }} ({{ s.ticker }})
+                        </option>
                     {% endfor %}
                 </select>
             </div>
 
-        <form id="modify-stock-form"
-            method="POST"
-            action="{{ url_for('modify_stock_route', stock_id=0) }}">
-            
-            <div class="mb-2">
-                <label>Stock Name</label>
-                <input id="mod-name" type="text" name="stock_name" class="form-control" required>
-            </div>
+            <form id="modify-stock-form" method="POST" action="">
+                <div class="mb-2">
+                    <label>Stock Name</label>
+                    <input id="mod-name" type="text" name="stock_name" class="form-control" required>
+                </div>
 
-            <div class="mb-2">
-                <label>Ticker</label>
-                <input id="mod-ticker" type="text" name="ticker" maxlength="10" class="form-control" required>
-            </div>
+                <div class="mb-2">
+                    <label>Ticker</label>
+                    <input id="mod-ticker" type="text" name="ticker" maxlength="10" class="form-control" required>
+                </div>
 
-            <div class="mb-2">
-                <label>Quantity</label>
-                <input id="mod-qty" type="number" name="quantity" min="1" class="form-control" required>
-            </div>
+                <div class="mb-2">
+                    <label>Quantity</label>
+                    <input id="mod-qty" type="number" name="quantity" min="1" class="form-control" required>
+                </div>
 
-            <div class="mb-2">
-                <label>Base Price</label>
-                <input id="mod-base" type="number" step="0.01" name="base_price" class="form-control" required>
-            </div>
+                <div class="mb-2">
+                    <label>Base Price</label>
+                    <input id="mod-base" type="number" step="0.01" name="base_price" class="form-control" required>
+                </div>
 
-            <div class="text-end">
-                <button type="submit" class="btn btn-warning">Update Stock</button>
-            </div>
-        </form>
-    </div>
+                <div class="text-end">
+                    <button type="submit" class="btn btn-warning">Update Stock</button>
+                </div>
+            </form>
+        </div>
     
     <div class="col-md-12 mt-4">
         <h4>All Orders</h4>
@@ -203,8 +203,9 @@
         </div>
     </div>
 
-    <h4 class="mb-3">Modify Calendar</h4>
+
     <div class="card mb-4">
+        <h4>Modify Calendar</h4>
         <form action="{{ url_for('calendar_add') }}" method="POST" class="row g-3">
                 <div class="col-md-3">
                     <input type="text" name="title" class="form-control" placeholder="Event Title" required>
@@ -283,6 +284,22 @@
 </div>
 
 <script>
+document.getElementById('modify-stock-selector').addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    const form = document.getElementById('modify-stock-form');
+
+    if (!selected.value) {
+        form.action = '';
+        form.reset();
+        return;
+    }
+    form.action = `/modify_stock/${selected.value}`;
+    document.getElementById('mod-name').value = selected.dataset.name;
+    document.getElementById('mod-ticker').value = selected.dataset.ticker;
+    document.getElementById('mod-qty').value = selected.dataset.quantity;
+    document.getElementById('mod-base').value = selected.dataset.base;
+});
+
 function setStockMode(mode) {
     document.querySelectorAll('.stock-panel').forEach(p => p.classList.add('d-none'));
 
