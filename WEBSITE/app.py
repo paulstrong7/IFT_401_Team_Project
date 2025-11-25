@@ -302,6 +302,7 @@ def get_avg_purchase_price(user_id, stock_id):
 def get_user_portfolio(user_id):
     portfolio_rows = Portfolio.query.filter_by(user_id=user_id).all()
     orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
+    return portfolio_rows, orders
 
 @app.route('/')
 def home():
@@ -356,25 +357,25 @@ def profile():
     if not user_id:
         return redirect(url_for('login'))
 
-    portfolio_rows = get_user_portfolio(user_id)
+    portfolio_rows, orders = get_user_portfolio(user_id)
 
     aggregated = {}
 
     for p in portfolio_rows:
-        ticker = p.get("stock_ticker")
+        ticker = p.stock.ticker if p.stock else None
         if not ticker:
             continue
 
         if ticker not in aggregated:
             aggregated[ticker] = {
-                "stock_name": p.get("stock_name"),
+                "stock_name": p.stock.name if p.stock else None,
                 "stock_ticker": ticker,
-                "quantity": p.get("quantity", 0),
-                "current_price": p.get("current_price", 0),
-                "stock_exists": p.get("stock_exists", True),
+                "quantity": p.quantity or 0,
+                "current_price": p.stock.current_price if p.stock else 0,
+                "stock_exists": True if p.stock else False,
             }
         else:
-            aggregated[ticker]["quantity"] += p.get("quantity", 0)
+            aggregated[ticker]["quantity"] += p.quantity or 0
 
     final_portfolio = []
     for item in aggregated.values():
