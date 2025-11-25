@@ -5,7 +5,6 @@ from functools import wraps
 from datetime import datetime, time, timedelta, date
 from config import os, SQLALCHEMY_DATABASE_URI
 import random
-from sqlalchemy.orm import joinedload
 
 
 
@@ -35,6 +34,7 @@ class User(db.Model):
 
 class StockInventory(db.Model):
     __tablename__ = 'StockInventory'
+
     stockId = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     ticker = db.Column(db.String(10), unique=True, nullable=False)
@@ -46,12 +46,12 @@ class StockInventory(db.Model):
     currentMarketPrice = db.Column(db.Float)
 
 class Portfolio(db.Model):
+    __tablename__ = "portfolio"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
-    stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId', ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId'), nullable=False)
     quantity = db.Column(db.Integer, default=0)
-    stock = db.relationship('StockInventory',backref=db.backref('portfolio_entries', cascade="all, delete", passive_deletes=True),lazy="joined"
-    )
+    stock = db.relationship('StockInventory')
 
 class Order(db.Model):
     __tablename__ = "orders"
@@ -258,20 +258,57 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('home'))
 
-@app.route('/profile', methods=['GET'])
+@app.route("/profile")
 @login_required
 def profile():
     user = User.query.get(session['user_id'])
-    users = User.query.all() if user.is_admin else []
-    stocks = StockInventory.query.all() if user.is_admin else []
-    portfolio = Portfolio.query.filter_by(user_id=user.id).all()
-    if user.is_admin:
-        orders = Order.query.order_by(Order.timestamp.desc()).all()
-    else:
-        orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
-    return render_template('profile.html', current_user=user, users=users, stocks=stocks, portfolio=portfolio, orders=orders)
+    if not user:
+        flash("User not found.")
+        return redirect(url_for('login'))
+    portfolio_rows = Portfolio.query.filter_by(user_id=user.id).all()
+    portfolio_safe = []
     
-
+    for p in portfolio_rows:
+        if p is None:
+            continue
+        
+        stock = None
+        stock_name = None
+        stock_ticker = None
+        stock_price = 0.0
+        
+        try:
+            if hasattr(p, 'stock_id') and p.stock_id:
+                stock = StockInventory.query.get(p.stock_id)
+                if stock:
+                    stock_name = getattr(stock, 'name', None)
+                    stock_ticker = getattr(stock, 'ticker', None)
+                    stock_price = float(getattr(stock, 'current_price', 0) or 0)
+        except Exception as e:
+            print(f"Error loading stock {p.stock_id}: {e}")
+        
+        quantity = p.quantity or 0
+        portfolio_safe.append({
+            "portfolio_id": p.id,
+            "stock_id": p.stock_id,
+            "quantity": quantity,
+            "stock_name": stock_name,
+            "stock_ticker": stock_ticker,
+            "stock_current_price": stock_price,
+            "total_value": round(stock_price * quantity, 2),
+            "trade_available": bool(stock_ticker)
+        })
+    
+    orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
+    for o in orders:
+        if o and hasattr(o, 'stock_id') and o.stock_id:
+            try:
+                if not hasattr(o, 'stock') or o.stock is None:
+                    o.stock = StockInventory.query.get(o.stock_id)
+            except Exception as e:
+                print(f"Error loading stock for order {o.id}: {e}")
+    
+    return render_template("profile.html", portfolio=portfolio_safe, orders=orders)
 
 @app.route('/admin')
 @admin_required
@@ -756,26 +793,31 @@ def delete_account():
     return redirect(url_for('home'))
 
 @app.route('/delete_user/<int:user_id>', methods=['POST'])
-@login_required
+@admin_required
 def delete_user(user_id):
-    current_user_obj = User.query.get(session['user_id'])
-    if not current_user_obj.is_admin():
+    current_user_obj = User.query.get(session.get('user_id'))
+    if not current_user_obj or not current_user_obj.is_admin():
         flash("You are not authorized to delete other users.", "danger")
         return redirect(url_for('profile'))
+
     if current_user_obj.id == user_id:
         flash("You cannot delete yourself from the admin console.", "danger")
         return redirect(url_for('admin_console'))
 
     user_to_delete = User.query.get_or_404(user_id)
-    for p in list(user_to_delete.portfolio):
-        stock = p.stock
-        if stock:
-            stock.quantity += p.quantity
-        db.session.delete(p)
-    db.session.delete(user_to_delete)
-    db.session.commit()
+    try:
+        for p in list(user_to_delete.portfolio):
+            stock = p.stock
+            if stock:
+                stock.quantity += p.quantity
+            db.session.delete(p)
+        db.session.delete(user_to_delete)
+        db.session.commit()
+        flash(f"User {user_to_delete.username} has been deleted.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Failed to delete user: " + str(e), "danger")
 
-    flash(f"User {user_to_delete.username} has been deleted.", "success")
     return redirect(url_for('admin_console'))
 
 @app.route('/add_funds', methods=['POST'])
