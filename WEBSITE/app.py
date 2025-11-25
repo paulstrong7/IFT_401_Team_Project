@@ -100,7 +100,7 @@ with app.app_context():
     db.create_all()
 
 MARKET_OPEN = time(8, 0)
-MARKET_CLOSE = time(17, 0)
+MARKET_CLOSE = time(24, 0)
 MIN_TICK_SECONDS = 60
 MAX_TICK_PERCENT = 0.02
 
