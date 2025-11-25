@@ -457,7 +457,19 @@ def add_stock_route():
     flash(f"Stock {ticker} added successfully!", "success")
     return redirect(url_for('admin_console'))
 
+@app.route('/api/get_stock/<int:stock_id>')
+@admin_required
+def api_get_stock(stock_id):
+    stock = StockInventory.query.get_or_404(stock_id)
 
+    return {
+        "id": stock.stockId,
+        "name": stock.name,
+        "ticker": stock.ticker,
+        "quantity": stock.quantity,
+        "base_price": stock.base_price
+    }
+    
 @app.route('/modify_stock/<int:stock_id>', methods=['POST'])
 @admin_required
 def modify_stock_route(stock_id):
@@ -468,17 +480,18 @@ def modify_stock_route(stock_id):
     new_quantity = int(request.form['quantity'])
     new_base_price = float(request.form['base_price'])
 
+    # Fix: use stockId, not id
     duplicate = StockInventory.query.filter(
         ((StockInventory.ticker == new_ticker) |
-        (StockInventory.name == new_name)) &
-        (StockInventory.id != stock_id)
+         (StockInventory.name == new_name)) &
+        (StockInventory.stockId != stock_id)
     ).first()
 
     if duplicate:
         flash("A stock with that name or ticker already exists.", "danger")
         return redirect(url_for('admin_console'))
 
-    # Update
+    # Update fields
     stock.name = new_name
     stock.ticker = new_ticker
     stock.quantity = new_quantity

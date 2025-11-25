@@ -118,68 +118,49 @@
         </div>
 
         <!-- MODIFY STOCK PANEL -->
+
         <div id="stock-modify" class="stock-panel d-none">
 
-            <!-- Stock Selector -->
-            <form method="GET" action="{{ url_for('admin_console') }}">
-                <div class="mb-2">
-                    <label>Select Stock</label>
-                    <select name="stock_id" class="form-control">
-                        <option value="">-- Choose Stock --</option>
-                        {% for s in stocks %}
-                            <option value="{{ s.stockId }}"
-                                {% if selected_stock and selected_stock.stockId == s.stockId %}selected{% endif %}>
-                                {{ s.name }} ({{ s.ticker }})
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
+            <div class="mb-2">
+                <label>Select Stock</label>
+                <select id="modify-stock-selector" class="form-control">
+                    <option value="">-- Choose Stock --</option>
+                    {% for s in stocks %}
+                        <option value="{{ s.stockId }}">{{ s.name }} ({{ s.ticker }})</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-                <button class="btn btn-secondary mt-2">Load Stock</button>
-            </form>
+        <form id="modify-stock-form"
+            method="POST"
+            action="{{ url_for('modify_stock_route', stock_id=0) }}">
+            
+            <div class="mb-2">
+                <label>Stock Name</label>
+                <input id="mod-name" type="text" name="stock_name" class="form-control" required>
+            </div>
 
-            {% if selected_stock %}
-            <form method="POST" action="{{ url_for('modify_stock_route', stock_id=selected_stock.stockId) }}">
-                <div class="mb-2">
-                    <label>Stock Name</label>
-                    <input type="text" name="stock_name"
-                        class="form-control"
-                        value="{{ selected_stock.name }}"
-                        required>
-                </div>
+            <div class="mb-2">
+                <label>Ticker</label>
+                <input id="mod-ticker" type="text" name="ticker" maxlength="10" class="form-control" required>
+            </div>
 
-                <div class="mb-2">
-                    <label>Ticker</label>
-                    <input type="text" name="ticker"
-                        maxlength="10"
-                        class="form-control"
-                        value="{{ selected_stock.ticker }}"
-                        required>
-                </div>
+            <div class="mb-2">
+                <label>Quantity</label>
+                <input id="mod-qty" type="number" name="quantity" min="1" class="form-control" required>
+            </div>
 
-                <div class="mb-2">
-                    <label>Quantity</label>
-                    <input type="number" min="1"
-                        name="quantity"
-                        class="form-control"
-                        value="{{ selected_stock.quantity }}"
-                        required>
-                </div>
+            <div class="mb-2">
+                <label>Base Price</label>
+                <input id="mod-base" type="number" step="0.01" name="base_price" class="form-control" required>
+            </div>
 
-                <div class="mb-2">
-                    <label>Base Price</label>
-                    <input type="number" step="0.01" name="base_price"
-                        class="form-control"
-                        value="{{ selected_stock.base_price }}"
-                        required>
-                </div>
+            <div class="text-end">
+                <button type="submit" class="btn btn-warning">Update Stock</button>
+            </div>
+        </form>
 
-                <div class="text-end">
-                    <button type="submit" class="btn btn-warning">Update Stock</button>
-                </div>
-            </form>
-            {% endif %}
-        </div>
+    </div>
     
     <div class="col-md-12 mt-4">
         <h4>All Orders</h4>
