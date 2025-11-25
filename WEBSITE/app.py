@@ -358,23 +358,25 @@ def profile():
 
     portfolio_rows = []
     for p in portfolio_entries:
-        stock_exists = p.stock is not None
+        stock = p.stock 
+        current_price = stock.current_price if stock else 0.0
+        total_value = round(current_price * (p.quantity or 0), 2)
         portfolio_rows.append({
-            "stock_name": p.stock.name if stock_exists else "(stock removed)",
-            "stock_ticker": p.stock.ticker if stock_exists else None,
+            "stock_name": stock.name if stock else "(stock removed)",
+            "stock_ticker": stock.ticker if stock else None,
             "quantity": p.quantity or 0,
-            "current_price": p.current_price or 0.0,
-            "current_total_value": p.current_total_value or 0.0,
-            "stock_exists": stock_exists
+            "current_price": current_price,
+            "current_total_value": total_value,
+            "stock_exists": stock is not None
         })
 
     orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
-
     order_rows = []
     for o in orders:
+        stock = o.stock
         order_rows.append({
             "id": o.id,
-            "stock_ticker": o.stock.ticker if o.stock else "(removed)",
+            "stock_ticker": stock.ticker if stock else "(removed)",
             "action": o.action,
             "quantity": o.quantity,
             "price_per_stock": o.price_per_stock or 0.0,
