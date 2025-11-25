@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime, time, timedelta, date
 from config import os, SQLALCHEMY_DATABASE_URI
+from sqlalchemy.orm import joinedload
 import random
 
 app = Flask(__name__, template_folder='templates')
@@ -34,7 +35,7 @@ class User(db.Model):
 class StockInventory(db.Model):
     __tablename__ = 'StockInventory'
     stockId = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
+    name = db.Column(db.String(100), db.ForeignKey('StockInventory.stockId'))
     ticker = db.Column(db.String(10), unique=True, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     base_price = db.Column(db.Float, default=0.0)
@@ -50,7 +51,7 @@ class Portfolio(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId'), nullable=False)
     quantity = db.Column(db.Integer, default=0)
-    stock = db.relationship('StockInventory')
+    stock = db.relationship('StockInventory', foreign_keys=[stock_id])
 
 
 class Order(db.Model):
@@ -225,17 +226,33 @@ def compress_day_for_stock(stock_id, day=None):
     return summary
 
 
+def sanitize_portfolio_item(item):
+    """Ensure a portfolio/order item has all required keys with safe defaults."""
+    item = dict(item) if not isinstance(item, dict) else item
+    item.setdefault("type", "holding")
+    item.setdefault("stock_name", None)
+    item.setdefault("stock_ticker", None)
+    item.setdefault("quantity", 0)
+    item.setdefault("current_price", 0.0)
+    item.setdefault("total_value", 0.0)
+    item.setdefault("stock_exists", item.get("stock_name") is not None)
+    return item
+
+
 def build_full_portfolio(user_id):
     """
-    Returns a list of dicts containing both holdings and recent orders.
-    Every dict includes a 'current_price' key to avoid template errors.
+    Returns a single list combining holdings and orders for the user.
+    Each item is a dict with keys: type (holding/order), stock_name, stock_ticker, 
+    quantity, current_price, total_value, stock_exists, etc.
+    All items are sanitized to prevent template errors.
     """
     portfolio_rows = Portfolio.query.filter_by(user_id=user_id).all()
     orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
     stocks = {s.stockId: s for s in StockInventory.query.all()}
 
     compiled = []
-    # holdings
+    
+    # Add holdings
     for p in portfolio_rows:
         if not p:
             continue
@@ -253,7 +270,7 @@ def build_full_portfolio(user_id):
             "stock_exists": True if stock else False
         })
 
-    # orders
+    # Add orders
     for o in orders:
         stock = stocks.get(o.stock_id)
         current_price = float(stock.current_price) if stock and stock.current_price is not None else 0.0
@@ -267,25 +284,14 @@ def build_full_portfolio(user_id):
             "quantity": o.quantity,
             "price_paid": o.price_per_stock,
             "timestamp": o.timestamp,
-            # Provide current_price for template safety
             "current_price": current_price,
             "total_amount": o.total_amount,
             "stock_exists": True if stock else False
         })
+    
     # Ensure every returned item is sanitized to avoid template/runtime errors
     return [sanitize_portfolio_item(p) for p in compiled]
 
-def sanitize_portfolio_item(item):
-    item = dict(item)
-    item.setdefault("stock_name", None)
-    item.setdefault("stock_ticker", None)
-    item.setdefault("quantity", 0)
-    item.setdefault("current_price", 0.0)
-
-    item["total_value"] = item["quantity"] * item["current_price"]
-    item["stock_exists"] = item["stock_name"] is not None
-
-    return item
 
 def get_avg_purchase_price(user_id, stock_id):
     buys = Order.query.filter_by(user_id=user_id, stock_id=stock_id, action='BUY', status='executed').all()
@@ -345,54 +351,28 @@ def logout():
     return redirect(url_for('home'))
 
 
-@app.route('/profile')
+@app.route("/profile")
 @login_required
 def profile():
-    # Get full list including duplicates
-    compiled = build_full_portfolio(user_id=session['user_id'])
+    user = User.query.get(session['user_id'])
+    if user is None:
+        flash("User not found.", "danger")
+        return redirect(url_for('login'))
 
-    # Aggregate holdings by ticker
-    aggregated = {}
+    users = User.query.all() if user.is_admin() else []
+    stocks = StockInventory.query.all() if user.is_admin() else []
+    
+    # Use build_full_portfolio for holdings only
+    portfolio = build_full_portfolio(user.id)
+    # Filter to holdings only
+    portfolio = [p for p in portfolio if p.get('type') == 'holding']
 
-    for item in compiled:
-        if item["type"] != "holding":
-            continue  # skip orders
+    if user.is_admin():
+        orders = Order.query.order_by(Order.timestamp.desc()).all()
+    else:
+        orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
 
-        ticker = item["stock_ticker"]
-        if not ticker:
-            continue
-
-        if ticker not in aggregated:
-            aggregated[ticker] = {
-                "stock_name": item["stock_name"],
-                "stock_ticker": ticker,
-                "quantity": item["quantity"],
-                "current_price": item["current_price"],
-                "stock_exists": item["stock_exists"]
-            }
-        else:
-            aggregated[ticker]["quantity"] += item["quantity"]
-
-    # Compute total values
-    final_portfolio = []
-    for a in aggregated.values():
-        q = a["quantity"]
-        p = a["current_price"]
-        a["total_value"] = round(q * p, 2)
-        final_portfolio.append(a)
-
-    # Load orders normally
-    orders = Order.query.filter_by(user_id=session['user_id'])\
-        .order_by(Order.timestamp.desc())\
-        .all()
-
-    return render_template(
-        "profile.html",
-        portfolio=final_portfolio,
-        orders=orders
-    )
-
-
+    return render_template('profile.html', current_user=user, users=users, stocks=stocks, portfolio=portfolio, orders=orders)
 @app.route('/admin')
 @admin_required
 def admin_console():
@@ -652,7 +632,6 @@ def order_preview(ticker):
     if quantity <= 0:
         flash("Quantity must be greater than zero.", "danger")
         return redirect(url_for('trade', ticker=ticker))
-    # Use canonical current_price
     total = (stock.current_price or 0.0) * quantity
     if action == 'BUY' and not market_open():
         flash("Market closed. Cannot place buy orders now.", "danger")

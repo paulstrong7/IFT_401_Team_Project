@@ -4,3 +4,4 @@ pymysql
 werkzeug
 flask-migrate
 python-dotenv
+SQLAlchemy>=1.4
