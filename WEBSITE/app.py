@@ -219,6 +219,8 @@ def get_avg_purchase_price(user_id, stock_id):
         return None
     return round(total_spent / total_qty, 2)
 
+
+
 @app.route('/')
 def home():
     stocks = StockInventory.query.limit(5).all()
@@ -234,7 +236,9 @@ def register():
             return redirect(url_for('register'))
         password_hash = generate_password_hash(password)
         admin_code = request.form.get('admin_code')
-        role = 'admin' if admin_code and admin_code == app.config.get('ADMIN_CONFIRM_CODE') else 'user'
+        role = 'user'
+        if admin_code and admin_code == app.config.get('ADMIN_CONFIRM_CODE'):
+            role = 'admin'
         user = User(username=username, password_hash=password_hash, role=role)
         db.session.add(user)
         db.session.commit()
@@ -260,24 +264,18 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('home'))
 
-@app.route("/profile")
+@app.route('/profile', methods=['GET'])
 @login_required
 def profile():
     user = User.query.get(session['user_id'])
-    if not user:
-        flash("User not found. Please log in again.")
-        session.clear()
-        return redirect(url_for('login'))
+    users = User.query.all() if user.is_admin else []
+    stocks = StockInventory.query.all() if user.is_admin else []
     portfolio = Portfolio.query.filter_by(user_id=user.id).all()
-    for p in portfolio:
-        try:
-            p.stock = StockInventory.query.get(p.stock_id) if p.stock_id else None
-        except Exception as e:
-            print(f"Error loading stock for portfolio {p.id}: {e}")
-            p.stock = None
-    orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
-
-    return render_template("profile.html", portfolio=portfolio, orders=orders)
+    if user.is_admin:
+        orders = Order.query.order_by(Order.timestamp.desc()).all()
+    else:
+        orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
+    return render_template('profile.html', current_user=user, users=users, stocks=stocks, portfolio=portfolio, orders=orders)
 
 
 @app.route('/admin')
