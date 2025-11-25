@@ -240,17 +240,9 @@ def sanitize_portfolio_item(item):
 
 
 def build_full_portfolio(user_id):
-    """
-    Returns a list of dicts representing a user's portfolio.
-    Each dict contains:
-    - type: 'holding' or other
-    - stock_id, ticker, name, quantity, current_price, avg_price
-    """
-    portfolio_items = Portfolio.query.filter_by(user_id=user_id).options(joinedload(Portfolio.stock)).all()
+    portfolio_items = Portfolio.query.join(StockInventory).filter(Portfolio.user_id == user_id).all()
     result = []
     for p in portfolio_items:
-        if not p.stock:
-            continue
         avg_price = get_avg_purchase_price(user_id, p.stock_id)
         result.append({
             'type': 'holding',

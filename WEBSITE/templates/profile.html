@@ -64,36 +64,16 @@
                     </thead>
                     <tbody>
                         {% for p in portfolio %}
-                        {% if p.type == 'holding' %}
                         <tr>
-                            <td style="color: white;">
-                                {% if p.stock_exists %}
-                                    {{ p.stock_name or 'Unknown' }}
-                                {% else %}
-                                    <em style="color: #ccc;">Deleted Stock</em>
-                                {% endif %}
-                            </td>
-                            <td style="color: white;">
-                                <strong>
-                                {% if p.stock_exists %}
-                                    {{ p.stock_ticker or 'N/A' }}
-                                {% else %}
-                                    <em style="color: #ccc;">—</em>
-                                {% endif %}
-                                </strong>
-                            </td>
-                            <td style="color: white;">{{ p.quantity or 0 }}</td>
+                            <td style="color: white;">{{ p.name }}</td>
+                            <td style="color: white;"><strong>{{ p.ticker }}</strong></td>
+                            <td style="color: white;">{{ p.quantity }}</td>
                             <td style="color: white;">${{ "%.2f"|format(p.current_price or 0) }}</td>
-                            <td style="color: white;">${{ "%.2f"|format(p.total_value or 0) }}</td>
+                            <td style="color: white;">${{ "%.2f"|format((p.quantity or 0) * (p.current_price or 0)) }}</td>
                             <td>
-                                {% if p.stock_exists %}
-                                    <a href="{{ url_for('trade', ticker=p.stock_ticker) }}" class="btn btn-primary btn-sm">Trade</a>
-                                {% else %}
-                                    <span class="text-muted">N/A</span>
-                                {% endif %}
+                                <a href="{{ url_for('trade', ticker=p.ticker) }}" class="btn btn-primary btn-sm">Trade</a>
                             </td>
                         </tr>
-                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
