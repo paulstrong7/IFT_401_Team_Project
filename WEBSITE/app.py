@@ -345,16 +345,52 @@ def logout():
     return redirect(url_for('home'))
 
 
-@app.route("/profile")
+@app.route('/profile')
 @login_required
 def profile():
-    user = User.query.get(session['user_id'])
-    if not user:
-        flash("User not found.")
-        return redirect(url_for('login'))
+    # Get full list including duplicates
+    compiled = build_full_portfolio(user_id=session['user_id'])
 
-    portfolio = build_full_portfolio(user.id)
-    return render_template("profile.html", portfolio=portfolio)
+    # Aggregate holdings by ticker
+    aggregated = {}
+
+    for item in compiled:
+        if item["type"] != "holding":
+            continue  # skip orders
+
+        ticker = item["stock_ticker"]
+        if not ticker:
+            continue
+
+        if ticker not in aggregated:
+            aggregated[ticker] = {
+                "stock_name": item["stock_name"],
+                "stock_ticker": ticker,
+                "quantity": item["quantity"],
+                "current_price": item["current_price"],
+                "stock_exists": item["stock_exists"]
+            }
+        else:
+            aggregated[ticker]["quantity"] += item["quantity"]
+
+    # Compute total values
+    final_portfolio = []
+    for a in aggregated.values():
+        q = a["quantity"]
+        p = a["current_price"]
+        a["total_value"] = round(q * p, 2)
+        final_portfolio.append(a)
+
+    # Load orders normally
+    orders = Order.query.filter_by(user_id=session['user_id'])\
+        .order_by(Order.timestamp.desc())\
+        .all()
+
+    return render_template(
+        "profile.html",
+        portfolio=final_portfolio,
+        orders=orders
+    )
 
 
 @app.route('/admin')
