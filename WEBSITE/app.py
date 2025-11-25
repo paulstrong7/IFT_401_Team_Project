@@ -299,10 +299,6 @@ def get_avg_purchase_price(user_id, stock_id):
         return None
     return round(total_spent / total_qty, 2)
 
-def get_user_portfolio(user_id):
-    portfolio_rows = Portfolio.query.filter_by(user_id=user_id).all()
-    orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
-    return portfolio_rows, orders
 
 @app.route('/')
 def home():
@@ -343,54 +339,58 @@ def login():
     return render_template('login.html')
 
 
-@app.route("/profile")
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    return redirect(url_for('home'))
+
+
+@app.route('/profile')
 @login_required
 def profile():
-    user_id = session.get("user_id")
-    user = User.query.get(user_id)
-    if not user:
-        flash("User not found.", "danger")
-        return redirect(url_for('login'))
+    # Get full list including duplicates
+    compiled = build_full_portfolio(user_id=session['user_id'])
 
-    portfolio_rows = []
-    portfolio_entries = Portfolio.query.filter_by(user_id=user_id).all()
-    for p in portfolio_entries:
-        if not p:
+    # Aggregate holdings by ticker
+    aggregated = {}
+
+    for item in compiled:
+        if item["type"] != "holding":
+            continue  # skip orders
+
+        ticker = item["stock_ticker"]
+        if not ticker:
             continue
-        stock = p.stock
-        stock_exists = stock is not None
-        current_price = float(stock.current_price) if stock_exists and stock.current_price is not None else 0.0
-        portfolio_rows.append({
-            "stock_name": stock.name if stock_exists else "(removed)",
-            "stock_ticker": stock.ticker if stock_exists else None,
-            "quantity": p.quantity or 0,
-            "current_price": current_price,
-            "total_value": round((p.quantity or 0) * current_price, 2),
-            "stock_exists": stock_exists
-        })
 
-    order_rows = []
-    orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
-    for o in orders:
-        stock = o.stock
-        stock_exists = stock is not None
-        current_price = float(stock.current_price) if stock_exists and stock.current_price is not None else 0.0
-        order_rows.append({
-            "id": o.id,
-            "stock_name": stock.name if stock_exists else "(removed)",
-            "stock_ticker": stock.ticker if stock_exists else None,
-            "action": o.action,
-            "quantity": o.quantity or 0,
-            "price_per_stock": o.price_per_stock or 0.0,
-            "total_amount": o.total_amount or 0.0,
-            "current_price": current_price,
-            "stock_exists": stock_exists,
-            "timestamp": o.timestamp
-        })
+        if ticker not in aggregated:
+            aggregated[ticker] = {
+                "stock_name": item["stock_name"],
+                "stock_ticker": ticker,
+                "quantity": item["quantity"],
+                "current_price": item["current_price"],
+                "stock_exists": item["stock_exists"]
+            }
+        else:
+            aggregated[ticker]["quantity"] += item["quantity"]
 
-    return render_template("profile.html", portfolio=portfolio_rows, orders=order_rows)
+    # Compute total values
+    final_portfolio = []
+    for a in aggregated.values():
+        q = a["quantity"]
+        p = a["current_price"]
+        a["total_value"] = round(q * p, 2)
+        final_portfolio.append(a)
 
+    # Load orders normally
+    orders = Order.query.filter_by(user_id=session['user_id'])\
+        .order_by(Order.timestamp.desc())\
+        .all()
 
+    return render_template(
+        "profile.html",
+        portfolio=final_portfolio,
+        orders=orders
+    )
 
 
 @app.route('/admin')
