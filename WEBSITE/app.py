@@ -265,12 +265,18 @@ def logout():
 def profile():
     user = User.query.get(session['user_id'])
     if not user:
-        flash("User not found.")
+        flash("User not found. Please log in again.")
+        session.clear()
         return redirect(url_for('login'))
     portfolio = Portfolio.query.filter_by(user_id=user.id).all()
     for p in portfolio:
-        p.stock = StockInventory.query.get(p.stock_id)
+        try:
+            p.stock = StockInventory.query.get(p.stock_id) if p.stock_id else None
+        except Exception as e:
+            print(f"Error loading stock for portfolio {p.id}: {e}")
+            p.stock = None
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
+
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
 
