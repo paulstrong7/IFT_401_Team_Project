@@ -74,15 +74,15 @@
                                 </td>
 
                                 <td style="color:white;">
-                                    {{ p.quantity }}
+                                    {{ p.quantity or 0 }}
                                 </td>
 
                                 <td style="color:white;">
-                                    ${{ "%.2f"|format(p.current_price) }}
+                                    ${{ "%.2f"|format(p.current_price or 0) }}
                                 </td>
 
                                 <td style="color:white;">
-                                    ${{ "%.2f"|format(p.total_value) }}
+                                    ${{ "%.2f"|format(p.current_total_value or 0) }}
                                 </td>
 
                                 <td style="color:white;">
@@ -97,7 +97,7 @@
                                 </td>
                             </tr>
                         {% endfor %}
-                        </tbody>
+                    </tbody>
                 </table>
             {% else %}
                 <p style="color: white;">You don’t own any stocks yet. Visit the <a href="{{ url_for('market') }}">Market</a> to start trading!</p>

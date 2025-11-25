@@ -272,8 +272,20 @@ def build_full_portfolio(user_id):
             "total_amount": o.total_amount,
             "stock_exists": True if stock else False
         })
-    return compiled
+    # Ensure every returned item is sanitized to avoid template/runtime errors
+    return [sanitize_portfolio_item(p) for p in compiled]
 
+def sanitize_portfolio_item(item):
+    item = dict(item)
+    item.setdefault("stock_name", None)
+    item.setdefault("stock_ticker", None)
+    item.setdefault("quantity", 0)
+    item.setdefault("current_price", 0.0)
+
+    item["total_value"] = item["quantity"] * item["current_price"]
+    item["stock_exists"] = item["stock_name"] is not None
+
+    return item
 
 def get_avg_purchase_price(user_id, stock_id):
     buys = Order.query.filter_by(user_id=user_id, stock_id=stock_id, action='BUY', status='executed').all()
