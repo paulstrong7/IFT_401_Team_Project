@@ -47,7 +47,7 @@ class StockInventory(db.Model):
 
 class Portfolio(db.Model):
     __tablename__ = "portfolio"
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId'), nullable=False)
     quantity = db.Column(db.Integer, default=0)

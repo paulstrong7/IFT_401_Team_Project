@@ -108,7 +108,7 @@
                     {% for o in orders %}
                     <tr>
                         <td style="color: white;">{{ o.id }}</td>
-                        <td style="color: white;">{{ o.stock.ticker }}</td>
+                        <td style="color: white;">{% if o.stock %}{{ o.stock.ticker }}{% else %}<em>Deleted</em>{% endif %}</td>
                         <td style="color: white;">{{ o.action }}</td>
                         <td style="color: white;">{{ o.quantity }}</td>
                         <td style="color: white;">${{ "%.2f"|format(o.price_per_stock or 0) }}</td>
