@@ -35,7 +35,6 @@ class User(db.Model):
 
 class StockInventory(db.Model):
     __tablename__ = 'StockInventory'
-
     stockId = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     ticker = db.Column(db.String(10), unique=True, nullable=False)
@@ -47,7 +46,6 @@ class StockInventory(db.Model):
     currentMarketPrice = db.Column(db.Float)
 
 class Portfolio(db.Model):
-    __tablename__ = "portfolio"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
     stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId', ondelete="CASCADE"), nullable=False)
@@ -219,8 +217,6 @@ def get_avg_purchase_price(user_id, stock_id):
         return None
     return round(total_spent / total_qty, 2)
 
-
-
 @app.route('/')
 def home():
     stocks = StockInventory.query.limit(5).all()
@@ -236,9 +232,7 @@ def register():
             return redirect(url_for('register'))
         password_hash = generate_password_hash(password)
         admin_code = request.form.get('admin_code')
-        role = 'user'
-        if admin_code and admin_code == app.config.get('ADMIN_CONFIRM_CODE'):
-            role = 'admin'
+        role = 'admin' if admin_code and admin_code == app.config.get('ADMIN_CONFIRM_CODE') else 'user'
         user = User(username=username, password_hash=password_hash, role=role)
         db.session.add(user)
         db.session.commit()
@@ -276,6 +270,7 @@ def profile():
     else:
         orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
     return render_template('profile.html', current_user=user, users=users, stocks=stocks, portfolio=portfolio, orders=orders)
+    
 
 
 @app.route('/admin')
