@@ -435,60 +435,71 @@ def add_stock_to_db(name, ticker, quantity, base_price):
     db.session.commit()
 
 
-@app.route('/add_or_update_stock', methods=['POST'])
+@app.route('/add_stock', methods=['POST'])
 @admin_required
-def add_or_update_stock():
-    stock_id = request.form.get('stock_id')
-    name = request.form.get('stock_name', '').strip()
-    ticker = request.form.get('ticker', '').upper().strip()
-    
-    try:
-        quantity = int(request.form.get('quantity', 0))
-    except ValueError:
-        quantity = 0
+def add_stock_route():
+    stock_name = request.form['stock_name']
+    ticker = request.form['ticker'].upper().strip()
+    quantity = int(request.form['quantity'])
+    base_price = float(request.form['base_price'])
 
-    try:
-        base_price = float(request.form.get('base_price', 0.0))
-    except ValueError:
-        base_price = 0.0
+    existing = StockInventory.query.filter(
+        (StockInventory.ticker == ticker) |
+        (StockInventory.stock_name == stock_name)
+    ).first()
 
-    if stock_id:
-        stock = StockInventory.query.get_or_404(stock_id)
-        stock.name = name or stock.name
-        stock.ticker = ticker or stock.ticker
-        stock.quantity = quantity
-        stock.base_price = base_price
-        stock.current_price = base_price
-        stock.day_high = base_price
-        stock.day_low = base_price
-        stock.currentMarketPrice = base_price
-        flash(f"Stock {stock.ticker} updated successfully.", "success")
-    else:
-        new_stock = StockInventory(
-            name=name,
-            ticker=ticker,
-            quantity=quantity,
-            base_price=base_price,
-            current_price=base_price,
-            day_high=base_price,
-            day_low=base_price,
-            currentMarketPrice=base_price
-        )
-        db.session.add(new_stock)
-        flash(f"Stock {ticker} added successfully.", "success")
+    if existing:
+        flash("A stock with that name or ticker already exists.", "danger")
+        return redirect(url_for('admin_console'))
 
-    db.session.commit()
+    add_stock_to_db(stock_name, ticker, quantity, base_price)
+
+    flash(f"Stock {ticker} added successfully!", "success")
     return redirect(url_for('admin_console'))
 
 
-@app.route('/remove_stock/<int:stock_id>', methods=['POST'])
+@app.route('/modify_stock/<int:stock_id>', methods=['POST'])
 @admin_required
-def remove_stock(stock_id):
+def modify_stock_route(stock_id):
+    stock = StockInventory.query.get_or_404(stock_id)
+
+    new_name = request.form['stock_name']
+    new_ticker = request.form['ticker'].upper().strip()
+    new_quantity = int(request.form['quantity'])
+    new_base_price = float(request.form['base_price'])
+
+    duplicate = StockInventory.query.filter(
+        ((StockInventory.ticker == new_ticker) |
+        (StockInventory.stock_name == new_name)) &
+        (StockInventory.id != stock_id)
+    ).first()
+
+    if duplicate:
+        flash("A stock with that name or ticker already exists.", "danger")
+        return redirect(url_for('admin_console'))
+
+    # Update
+    stock.stock_name = new_name
+    stock.ticker = new_ticker
+    stock.quantity = new_quantity
+    stock.base_price = new_base_price
+
+    db.session.commit()
+
+    flash(f"Updated stock {new_ticker}.", "success")
+    return redirect(url_for('admin_console'))
+
+@app.route('/remove_stock', methods=['POST'])
+@admin_required
+def remove_stock():
+    stock_id = request.form.get("stock_id")
     s = StockInventory.query.get_or_404(stock_id)
+
     owners = Portfolio.query.filter_by(stock_id=s.stockId).first()
     if owners:
         flash("Cannot remove stock while users still hold positions.", "danger")
         return redirect(url_for('admin_console'))
+
     db.session.delete(s)
     db.session.commit()
 
