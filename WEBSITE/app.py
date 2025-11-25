@@ -214,22 +214,18 @@ def compress_day_for_stock(stock_id, day=None):
     db.session.commit()
     return summary
 
-def build_portfolio_view(user_id):
-    """
-    Returns a list of dicts combining Portfolio + Stock info safely,
-    without depending on SQLAlchemy relationships.
-    """
-
+def build_full_portfolio(user_id):
     portfolio_rows = Portfolio.query.filter_by(user_id=user_id).all()
-
-    compiled = []
-
+    orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
     stocks = {s.stockId: s for s in StockInventory.query.all()}
 
+    compiled = []
     for p in portfolio_rows:
+        if not p:
+            continue
         stock = stocks.get(p.stock_id)
-
         compiled.append({
+            "type": "holding",
             "portfolio_id": p.id,
             "stock_id": p.stock_id,
             "quantity": p.quantity or 0,
@@ -239,6 +235,22 @@ def build_portfolio_view(user_id):
             "total_value": round((float(stock.current_price) if stock else 0.0) * (p.quantity or 0), 2),
             "stock_exists": True if stock else False
         })
+    for o in orders:
+        stock = stocks.get(o.stock_id)
+        compiled.append({
+            "type": "order",
+            "order_id": o.id,
+            "stock_id": o.stock_id,
+            "stock_name": stock.name if stock else None,
+            "stock_ticker": stock.ticker if stock else None,
+            "order_type": o.action,
+            "quantity": o.quantity,
+            "price_paid": o.price_per_stock,
+            "timestamp": o.timestamp,
+            "stock_exists": True if stock else False
+        })
+    return compiled
+        
 def get_avg_purchase_price(user_id, stock_id):
     buys = Order.query.filter_by(user_id=user_id, stock_id=stock_id, action='BUY', status='executed').all()
     total_qty = 0
@@ -296,14 +308,13 @@ def logout():
 @login_required
 def profile():
     user = User.query.get(session['user_id'])
+    if not user:
+        flash("User not found.")
+        return redirect(url_for('login'))
 
-    portfolio = build_portfolio_view(user.id)
+    portfolio = build_full_portfolio(user.id)
+    return render_template("profile.html", portfolio=portfolio)
 
-    orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
-
-    return render_template("profile.html", portfolio=portfolio, orders=orders)
-
-    return compiled
 @app.route('/admin')
 @admin_required
 def admin_console():
