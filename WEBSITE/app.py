@@ -299,6 +299,9 @@ def get_avg_purchase_price(user_id, stock_id):
         return None
     return round(total_spent / total_qty, 2)
 
+def get_user_portfolio(user_id):
+    portfolio_rows = Portfolio.query.filter_by(user_id=user_id).all()
+    orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
 
 @app.route('/')
 def home():
@@ -348,49 +351,42 @@ def logout():
 @app.route('/profile')
 @login_required
 def profile():
-    # Get full list including duplicates
-    compiled = build_full_portfolio(user_id=session['user_id'])
+    user_id = session.get("user_id")
 
-    # Aggregate holdings by ticker
+    if not user_id:
+        return redirect(url_for('login'))
+
+    portfolio_rows = get_user_portfolio(user_id)
+
     aggregated = {}
 
-    for item in compiled:
-        if item["type"] != "holding":
-            continue  # skip orders
-
-        ticker = item["stock_ticker"]
+    for p in portfolio_rows:
+        ticker = p.get("stock_ticker")
         if not ticker:
             continue
 
         if ticker not in aggregated:
             aggregated[ticker] = {
-                "stock_name": item["stock_name"],
+                "stock_name": p.get("stock_name"),
                 "stock_ticker": ticker,
-                "quantity": item["quantity"],
-                "current_price": item["current_price"],
-                "stock_exists": item["stock_exists"]
+                "quantity": p.get("quantity", 0),
+                "current_price": p.get("current_price", 0),
+                "stock_exists": p.get("stock_exists", True),
             }
         else:
-            aggregated[ticker]["quantity"] += item["quantity"]
+            aggregated[ticker]["quantity"] += p.get("quantity", 0)
 
-    # Compute total values
     final_portfolio = []
-    for a in aggregated.values():
-        q = a["quantity"]
-        p = a["current_price"]
-        a["total_value"] = round(q * p, 2)
-        final_portfolio.append(a)
+    for item in aggregated.values():
+        qty = item["quantity"]
+        price = item["current_price"]
+        item["total_value"] = qty * price
+        final_portfolio.append(item)
 
-    # Load orders normally
-    orders = Order.query.filter_by(user_id=session['user_id'])\
-        .order_by(Order.timestamp.desc())\
-        .all()
+    orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
 
-    return render_template(
-        "profile.html",
-        portfolio=final_portfolio,
-        orders=orders
-    )
+    return render_template("profile.html", portfolio=final_portfolio, orders=orders)
+
 
 
 @app.route('/admin')
