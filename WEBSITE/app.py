@@ -349,44 +349,41 @@ def logout():
     return redirect(url_for('home'))
 
 
-@app.route('/profile')
+@app.route("/profile")
 @login_required
 def profile():
     user_id = session.get("user_id")
 
-    if not user_id:
-        return redirect(url_for('login'))
+    portfolio_entries = Portfolio.query.filter_by(user_id=user_id).all()
 
-    portfolio_rows, orders = get_user_portfolio(user_id)
-
-    aggregated = {}
-
-    for p in portfolio_rows:
-        ticker = p.stock.ticker if p.stock else None
-        if not ticker:
-            continue
-
-        if ticker not in aggregated:
-            aggregated[ticker] = {
-                "stock_name": p.stock.name if p.stock else None,
-                "stock_ticker": ticker,
-                "quantity": p.quantity or 0,
-                "current_price": p.stock.current_price if p.stock else 0,
-                "stock_exists": True if p.stock else False,
-            }
-        else:
-            aggregated[ticker]["quantity"] += p.quantity or 0
-
-    final_portfolio = []
-    for item in aggregated.values():
-        qty = item["quantity"]
-        price = item["current_price"]
-        item["total_value"] = qty * price
-        final_portfolio.append(item)
+    portfolio_rows = []
+    for p in portfolio_entries:
+        stock_exists = p.stock is not None
+        portfolio_rows.append({
+            "stock_name": p.stock.name if stock_exists else "(stock removed)",
+            "stock_ticker": p.stock.ticker if stock_exists else None,
+            "quantity": p.quantity or 0,
+            "current_price": p.current_price or 0.0,
+            "current_total_value": p.current_total_value or 0.0,
+            "stock_exists": stock_exists
+        })
 
     orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
 
-    return render_template("profile.html", portfolio=final_portfolio, orders=orders)
+    order_rows = []
+    for o in orders:
+        order_rows.append({
+            "id": o.id,
+            "stock_ticker": o.stock.ticker if o.stock else "(removed)",
+            "action": o.action,
+            "quantity": o.quantity,
+            "price_per_stock": o.price_per_stock or 0.0,
+            "total_amount": o.total_amount or 0.0,
+            "timestamp": o.timestamp
+        })
+
+    return render_template("profile.html", portfolio=portfolio_rows, orders=order_rows)
+
 
 
 
