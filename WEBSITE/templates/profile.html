@@ -65,17 +65,39 @@
                     <tbody>
                         {% for p in portfolio %}
                             <tr>
-                                <td style="color: white;">{{ p.stock.name }}</td>
-                                <td style="color: white;"><strong>{{ p.stock.ticker }}</strong></td>
-                                <td style="color: white;">{{ p.quantity }}</td>
-                                <td style="color: white;">${{ "%.2f"|format(p.stock.current_price) }}</td>
-                                <td style="color: white;">${{ "%.2f"|format(p.stock.current_price * p.quantity) }}</td>
-                                <td>
-                                    <a href="{{ url_for('trade', ticker=p.stock.ticker) }}" class="btn btn-sm btn-primary">Trade</a>
+                                <td style="color:white;">
+                                    {{ p.stock_name or "(stock removed)" }}
+                                </td>
+
+                                <td style="color:white;">
+                                    <strong>{{ p.stock_ticker or "—" }}</strong>
+                                </td>
+
+                                <td style="color:white;">
+                                    {{ p.quantity }}
+                                </td>
+
+                                <td style="color:white;">
+                                    ${{ "%.2f"|format(p.current_price) }}
+                                </td>
+
+                                <td style="color:white;">
+                                    ${{ "%.2f"|format(p.total_value) }}
+                                </td>
+
+                                <td style="color:white;">
+                                    {% if p.stock_exists %}
+                                        <a href="{{ url_for('trade', ticker=p.stock_ticker) }}"
+                                        class="btn btn-primary btn-sm">
+                                            Trade
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
-                    </tbody>
+                        </tbody>
                 </table>
             {% else %}
                 <p style="color: white;">You don’t own any stocks yet. Visit the <a href="{{ url_for('market') }}">Market</a> to start trading!</p>

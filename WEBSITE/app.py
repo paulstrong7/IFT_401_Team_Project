@@ -214,6 +214,31 @@ def compress_day_for_stock(stock_id, day=None):
     db.session.commit()
     return summary
 
+def build_portfolio_view(user_id):
+    """
+    Returns a list of dicts combining Portfolio + Stock info safely,
+    without depending on SQLAlchemy relationships.
+    """
+
+    portfolio_rows = Portfolio.query.filter_by(user_id=user_id).all()
+
+    compiled = []
+
+    stocks = {s.stockId: s for s in StockInventory.query.all()}
+
+    for p in portfolio_rows:
+        stock = stocks.get(p.stock_id)
+
+        compiled.append({
+            "portfolio_id": p.id,
+            "stock_id": p.stock_id,
+            "quantity": p.quantity or 0,
+            "stock_name": stock.name if stock else None,
+            "stock_ticker": stock.ticker if stock else None,
+            "current_price": float(stock.current_price) if stock else 0.0,
+            "total_value": round((float(stock.current_price) if stock else 0.0) * (p.quantity or 0), 2),
+            "stock_exists": True if stock else False
+        })
 def get_avg_purchase_price(user_id, stock_id):
     buys = Order.query.filter_by(user_id=user_id, stock_id=stock_id, action='BUY', status='executed').all()
     total_qty = 0
@@ -271,19 +296,14 @@ def logout():
 @login_required
 def profile():
     user = User.query.get(session['user_id'])
-    if not user:
-        flash("User not found.")
-        return redirect(url_for('login'))
 
-    portfolio = Portfolio.query.filter(
-        Portfolio.user_id == user.id,
-        Portfolio.stock_id.isnot(None)
-    ).all()
-    portfolio = [p for p in portfolio if p and p.stock]
+    portfolio = build_portfolio_view(user.id)
 
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
+
     return render_template("profile.html", portfolio=portfolio, orders=orders)
 
+    return compiled
 @app.route('/admin')
 @admin_required
 def admin_console():
