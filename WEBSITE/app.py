@@ -265,50 +265,11 @@ def profile():
     if not user:
         flash("User not found.")
         return redirect(url_for('login'))
-    portfolio_rows = Portfolio.query.filter_by(user_id=user.id).all()
-    portfolio_safe = []
-    
-    for p in portfolio_rows:
-        if p is None:
-            continue
-        
-        stock = None
-        stock_name = None
-        stock_ticker = None
-        stock_price = 0.0
-        
-        try:
-            if hasattr(p, 'stock_id') and p.stock_id:
-                stock = StockInventory.query.get(p.stock_id)
-                if stock:
-                    stock_name = getattr(stock, 'name', None)
-                    stock_ticker = getattr(stock, 'ticker', None)
-                    stock_price = float(getattr(stock, 'current_price', 0) or 0)
-        except Exception as e:
-            print(f"Error loading stock {p.stock_id}: {e}")
-        
-        quantity = p.quantity or 0
-        portfolio_safe.append({
-            "portfolio_id": p.id,
-            "stock_id": p.stock_id,
-            "quantity": quantity,
-            "stock_name": stock_name,
-            "stock_ticker": stock_ticker,
-            "stock_current_price": stock_price,
-            "total_value": round(stock_price * quantity, 2),
-            "trade_available": bool(stock_ticker)
-        })
+    portfolio = Portfolio.query.filter_by(user_id=user.id).all()
     
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
-    for o in orders:
-        if o and hasattr(o, 'stock_id') and o.stock_id:
-            try:
-                if not hasattr(o, 'stock') or o.stock is None:
-                    o.stock = StockInventory.query.get(o.stock_id)
-            except Exception as e:
-                print(f"Error loading stock for order {o.id}: {e}")
     
-    return render_template("profile.html", portfolio=portfolio_safe, orders=orders)
+    return render_template("profile.html", portfolio=portfolio, orders=orders)
 
 @app.route('/admin')
 @admin_required
