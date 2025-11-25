@@ -240,20 +240,57 @@ def sanitize_portfolio_item(item):
 
 
 def build_full_portfolio(user_id):
-    portfolio_items = Portfolio.query.join(StockInventory).filter(Portfolio.user_id == user_id).all()
-    result = []
-    for p in portfolio_items:
-        avg_price = get_avg_purchase_price(user_id, p.stock_id)
-        result.append({
-            'type': 'holding',
-            'stock_id': p.stock_id,
-            'ticker': p.stock.ticker,
-            'name': p.stock.name,
-            'quantity': p.quantity,
-            'current_price': p.stock.current_price,
-            'avg_price': avg_price
+    """
+    Returns a single list combining holdings and orders for the user.
+    Each item is a dict with keys: type (holding/order), stock_name, stock_ticker, 
+    quantity, current_price, total_value, stock_exists, etc.
+    All items are sanitized to prevent template errors.
+    """
+    portfolio_rows = Portfolio.query.filter_by(user_id=user_id).all()
+    orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
+    stocks = {s.stockId: s for s in StockInventory.query.all()}
+
+    compiled = []
+    
+    # Add holdings
+    for p in portfolio_rows:
+        if not p:
+            continue
+        stock = stocks.get(p.stock_id)
+        current_price = float(stock.current_price) if stock and stock.current_price is not None else 0.0
+        compiled.append({
+            "type": "holding",
+            "portfolio_id": p.id,
+            "stock_id": p.stock_id,
+            "quantity": p.quantity or 0,
+            "stock_name": stock.name if stock else None,
+            "stock_ticker": stock.ticker if stock else None,
+            "current_price": current_price,
+            "total_value": round(current_price * (p.quantity or 0), 2),
+            "stock_exists": True if stock else False
         })
-    return result
+
+    # Add orders
+    for o in orders:
+        stock = stocks.get(o.stock_id)
+        current_price = float(stock.current_price) if stock and stock.current_price is not None else 0.0
+        compiled.append({
+            "type": "order",
+            "order_id": o.id,
+            "stock_id": o.stock_id,
+            "stock_name": stock.name if stock else None,
+            "stock_ticker": stock.ticker if stock else None,
+            "order_type": o.action,
+            "quantity": o.quantity,
+            "price_paid": o.price_per_stock,
+            "timestamp": o.timestamp,
+            "current_price": current_price,
+            "total_amount": o.total_amount,
+            "stock_exists": True if stock else False
+        })
+    
+    # Ensure every returned item is sanitized to avoid template/runtime errors
+    return [sanitize_portfolio_item(p) for p in compiled]
 
 
 def get_avg_purchase_price(user_id, stock_id):
@@ -324,7 +361,6 @@ def profile():
 
     users = User.query.all() if user.is_admin() else []
     stocks = StockInventory.query.all() if user.is_admin() else []
-
     portfolio = build_full_portfolio(user.id)
     portfolio = [p for p in portfolio if p.get('type') == 'holding']
 
@@ -333,16 +369,7 @@ def profile():
     else:
         orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
 
-    return render_template(
-        'profile.html',
-        current_user=user,
-        users=users,
-        stocks=stocks,
-        portfolio=portfolio,
-        orders=orders
-    )
-    
-    
+    return render_template('profile.html', current_user=user, users=users, stocks=stocks, portfolio=portfolio, orders=orders)
 @app.route('/admin')
 @admin_required
 def admin_console():
