@@ -267,9 +267,12 @@ def profile():
     if not user:
         flash("User not found.")
         return redirect(url_for('login'))
-    portfolio = (Portfolio.query.join(StockInventory, Portfolio.stock_id == StockInventory.stockId).filter(Portfolio.user_id == user.id).all())
+    portfolio = Portfolio.query.filter_by(user_id=user.id).all()
+    for p in portfolio:
+        p.stock = StockInventory.query.get(p.stock_id)
     orders = Order.query.filter_by(user_id=user.id).order_by(Order.timestamp.desc()).all()
     return render_template("profile.html", portfolio=portfolio, orders=orders)
+
 
 @app.route('/admin')
 @admin_required
