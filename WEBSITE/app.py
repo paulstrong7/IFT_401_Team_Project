@@ -445,7 +445,7 @@ def add_stock_route():
 
     existing = StockInventory.query.filter(
         (StockInventory.ticker == ticker) |
-        (StockInventory.stock_name == stock_name)
+        (StockInventory.name == stock_name)
     ).first()
 
     if existing:
@@ -470,7 +470,7 @@ def modify_stock_route(stock_id):
 
     duplicate = StockInventory.query.filter(
         ((StockInventory.ticker == new_ticker) |
-        (StockInventory.stock_name == new_name)) &
+        (StockInventory.name == new_name)) &
         (StockInventory.id != stock_id)
     ).first()
 
@@ -479,7 +479,7 @@ def modify_stock_route(stock_id):
         return redirect(url_for('admin_console'))
 
     # Update
-    stock.stock_name = new_name
+    stock.name = new_name
     stock.ticker = new_ticker
     stock.quantity = new_quantity
     stock.base_price = new_base_price

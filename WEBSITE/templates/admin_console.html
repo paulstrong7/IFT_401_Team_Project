@@ -104,45 +104,47 @@
                     <select name="stock_id" class="form-control" required>
                         <option value="">-- Choose Stock --</option>
                         {% for s in stocks %}
-                            <option value="{{ s.id }}">{{ s.stock_name }} ({{ s.ticker }})</option>
+                            <option value="{{ s.stockId }}">
+                                {{ s.name }} ({{ s.ticker }})
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <div class="text-end">
-                    <button type="submit" class="btn btn-danger"
-                            onclick="return confirm('Delete this stock?');">
-                        Remove Stock
-                    </button>
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete this stock?');">Remove Stock</button>
                 </div>
             </form>
         </div>
 
         <!-- MODIFY STOCK PANEL -->
         <div id="stock-modify" class="stock-panel d-none">
+
             <!-- Stock Selector -->
             <form method="GET" action="{{ url_for('admin_console') }}">
                 <div class="mb-2">
                     <label>Select Stock</label>
-                    <select name="stock_id" class="form-control" onchange="this.form.submit()">
+                    <select name="stock_id" class="form-control">
                         <option value="">-- Choose Stock --</option>
                         {% for s in stocks %}
-                            <option value="{{ s.id }}"
-                                {% if selected_stock and selected_stock.id == s.id %}selected{% endif %}>
-                                {{ s.stock_name }} ({{ s.ticker }})
+                            <option value="{{ s.stockId }}"
+                                {% if selected_stock and selected_stock.stockId == s.stockId %}selected{% endif %}>
+                                {{ s.name }} ({{ s.ticker }})
                             </option>
                         {% endfor %}
                     </select>
                 </div>
+
+                <button class="btn btn-secondary mt-2">Load Stock</button>
             </form>
 
             {% if selected_stock %}
-            <form method="POST" action="{{ url_for('modify_stock_route', stock_id=selected_stock.id) }}">
+            <form method="POST" action="{{ url_for('modify_stock_route', stock_id=selected_stock.stockId) }}">
                 <div class="mb-2">
                     <label>Stock Name</label>
                     <input type="text" name="stock_name"
                         class="form-control"
-                        value="{{ selected_stock.stock_name }}"
+                        value="{{ selected_stock.name }}"
                         required>
                 </div>
 
@@ -178,7 +180,6 @@
             </form>
             {% endif %}
         </div>
-    </div>
     
     <div class="col-md-12 mt-4">
         <h4>All Orders</h4>
