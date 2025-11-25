@@ -47,7 +47,7 @@ class StockInventory(db.Model):
 
 class Portfolio(db.Model):
     __tablename__ = "portfolio"
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     stock_id = db.Column(db.Integer, db.ForeignKey('StockInventory.stockId'), nullable=False)
     quantity = db.Column(db.Integer, default=0)
@@ -252,7 +252,6 @@ def build_full_portfolio(user_id):
 
     compiled = []
     
-    # Add holdings
     for p in portfolio_rows:
         if not p:
             continue
@@ -361,7 +360,10 @@ def profile():
 
     users = User.query.all() if user.is_admin() else []
     stocks = StockInventory.query.all() if user.is_admin() else []
+    
+    # Use build_full_portfolio for holdings only
     portfolio = build_full_portfolio(user.id)
+    # Filter to holdings only
     portfolio = [p for p in portfolio if p.get('type') == 'holding']
 
     if user.is_admin():
@@ -388,6 +390,26 @@ def promote_user(user_id):
         db.session.commit()
     return redirect(url_for('admin_console'))
 
+@app.route('/demote/<int:user_id>', methods=['POST'])
+@admin_required
+def demote_user(user_id):
+    current_user_obj = User.query.get(session.get('user_id'))
+    if not current_user_obj or not current_user_obj.is_admin():
+        flash("You are not authorized.", "danger")
+        return redirect(url_for('profile'))
+
+    if current_user_obj.id == user_id:
+        flash("You cannot demote yourself.", "danger")
+        return redirect(url_for('admin_console'))
+
+    user_to_demote = User.query.get_or_404(user_id)
+    if user_to_demote.role != 'admin':
+        flash(f"{user_to_demote.username} is not an admin.", "warning")
+    else:
+        user_to_demote.role = 'user'
+        db.session.commit()
+        flash(f"User {user_to_demote.username} has been demoted to regular user.", "success")
+    return redirect(url_for('admin_console'))
 
 def add_stock_to_db(name, ticker, quantity, base_price):
     try:
@@ -413,16 +435,49 @@ def add_stock_to_db(name, ticker, quantity, base_price):
     db.session.commit()
 
 
-@app.route('/add_stock', methods=['POST'])
+@app.route('/add_or_update_stock', methods=['POST'])
 @admin_required
-def add_stock_route():
-    stock_name = request.form['stock_name']
-    ticker = request.form['ticker']
-    quantity = request.form['quantity']
-    base_price = request.form['base_price']
-    add_stock_to_db(stock_name, ticker, quantity, base_price)
+def add_or_update_stock():
+    stock_id = request.form.get('stock_id')
+    name = request.form.get('stock_name', '').strip()
+    ticker = request.form.get('ticker', '').upper().strip()
+    
+    try:
+        quantity = int(request.form.get('quantity', 0))
+    except ValueError:
+        quantity = 0
 
-    flash(f"Stock {ticker} added successfully!", "success")
+    try:
+        base_price = float(request.form.get('base_price', 0.0))
+    except ValueError:
+        base_price = 0.0
+
+    if stock_id:
+        stock = StockInventory.query.get_or_404(stock_id)
+        stock.name = name or stock.name
+        stock.ticker = ticker or stock.ticker
+        stock.quantity = quantity
+        stock.base_price = base_price
+        stock.current_price = base_price
+        stock.day_high = base_price
+        stock.day_low = base_price
+        stock.currentMarketPrice = base_price
+        flash(f"Stock {stock.ticker} updated successfully.", "success")
+    else:
+        new_stock = StockInventory(
+            name=name,
+            ticker=ticker,
+            quantity=quantity,
+            base_price=base_price,
+            current_price=base_price,
+            day_high=base_price,
+            day_low=base_price,
+            currentMarketPrice=base_price
+        )
+        db.session.add(new_stock)
+        flash(f"Stock {ticker} added successfully.", "success")
+
+    db.session.commit()
     return redirect(url_for('admin_console'))
 
 
