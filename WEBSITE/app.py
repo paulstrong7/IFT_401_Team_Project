@@ -343,44 +343,48 @@ def login():
     return render_template('login.html')
 
 
-@app.route('/logout')
-def logout():
-    session.pop('user_id', None)
-    return redirect(url_for('home'))
-
-
 @app.route("/profile")
 @login_required
 def profile():
     user_id = session.get("user_id")
-
-    portfolio_entries = Portfolio.query.filter_by(user_id=user_id).all()
+    user = User.query.get(user_id)
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for('login'))
 
     portfolio_rows = []
+    portfolio_entries = Portfolio.query.filter_by(user_id=user_id).all()
     for p in portfolio_entries:
-        stock = p.stock 
-        current_price = stock.current_price if stock else 0.0
-        total_value = round(current_price * (p.quantity or 0), 2)
+        if not p:
+            continue
+        stock = p.stock
+        stock_exists = stock is not None
+        current_price = float(stock.current_price) if stock_exists and stock.current_price is not None else 0.0
         portfolio_rows.append({
-            "stock_name": stock.name if stock else "(stock removed)",
-            "stock_ticker": stock.ticker if stock else None,
+            "stock_name": stock.name if stock_exists else "(removed)",
+            "stock_ticker": stock.ticker if stock_exists else None,
             "quantity": p.quantity or 0,
             "current_price": current_price,
-            "current_total_value": total_value,
-            "stock_exists": stock is not None
+            "total_value": round((p.quantity or 0) * current_price, 2),
+            "stock_exists": stock_exists
         })
 
-    orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
     order_rows = []
+    orders = Order.query.filter_by(user_id=user_id).order_by(Order.timestamp.desc()).all()
     for o in orders:
         stock = o.stock
+        stock_exists = stock is not None
+        current_price = float(stock.current_price) if stock_exists and stock.current_price is not None else 0.0
         order_rows.append({
             "id": o.id,
-            "stock_ticker": stock.ticker if stock else "(removed)",
+            "stock_name": stock.name if stock_exists else "(removed)",
+            "stock_ticker": stock.ticker if stock_exists else None,
             "action": o.action,
-            "quantity": o.quantity,
+            "quantity": o.quantity or 0,
             "price_per_stock": o.price_per_stock or 0.0,
             "total_amount": o.total_amount or 0.0,
+            "current_price": current_price,
+            "stock_exists": stock_exists,
             "timestamp": o.timestamp
         })
 
